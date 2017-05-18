@@ -1,0 +1,11 @@
+<litepal>
+
+    <dbname value="local_driver"/>
+    <version value="1"/>
+    <list>
+        <mapping class="com.vikingyang.localdriver.db.Province"/>
+        <mapping class="com.vikingyang.localdriver.db.City"/>
+
+    </list>
+
+</litepal>

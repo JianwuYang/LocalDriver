@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="20dp"
+    android:layout_marginBottom="10dp"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <EditText
+        android:id="@+id/search_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"/>
+
+    <RadioGroup
+        android:id="@+id/radioGroupId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/search_content"
+        android:layout_centerInParent="true"
+        android:orientation="horizontal" >
+        <RadioButton
+            android:id="@+id/radioId1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="路线" />
+        <RadioButton
+            android:id="@+id/radioId2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="站台" />
+    </RadioGroup>
+
+
+
+
+</RelativeLayout>
