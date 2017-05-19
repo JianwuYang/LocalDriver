@@ -11,6 +11,7 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -59,6 +60,7 @@ public class ChooseAreaFragment extends Fragment {
     private ArrayAdapter<String> adapter;
 
     private List<String> dataList = new ArrayList<>();
+
 
     /**
      * 省列表
@@ -111,6 +113,7 @@ public class ChooseAreaFragment extends Fragment {
                     selectedCity = cityList.get(position);
                     Intent intent = new Intent(getActivity(),SearchActivity.class);
                     intent.putExtra("city",selectedCity.getCityName());
+
                     startActivity(intent);
                     getActivity().finish();
                 }
