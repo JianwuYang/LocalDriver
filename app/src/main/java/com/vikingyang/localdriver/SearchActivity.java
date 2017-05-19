@@ -1,6 +1,7 @@
 package com.vikingyang.localdriver;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
@@ -10,6 +11,7 @@ import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
@@ -83,11 +85,15 @@ public class SearchActivity extends AppCompatActivity {
 
         Intent intent = getIntent();
         cityName = intent.getStringExtra("city");
+        final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
         if(cityName==null){
-            final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
             cityName = prefs.getString("city",null);
         }
+
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putString("city",cityName);
+        editor.apply();
 
         cityNameView.setText(cityName);
 
@@ -105,9 +111,11 @@ public class SearchActivity extends AppCompatActivity {
         });
 
         floatingActionButton = (FloatingActionButton) findViewById(R.id.search_bus);
+
         floatingActionButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                hintKb();
                 showProgressDialog();
                 if(checked == 1){
                     sendForBusLineRequest();
@@ -235,5 +243,17 @@ public class SearchActivity extends AppCompatActivity {
     private List<String> convertString2List(String str){
         String[] strs = str.split(";",0);
         return Arrays.asList(strs);
+    }
+
+    /**
+     * 关闭软键盘
+     */
+    private void hintKb() {
+        InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+        if(imm.isActive()&&getCurrentFocus()!=null){
+            if (getCurrentFocus().getWindowToken()!=null) {
+                imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
+            }
+        }
     }
 }
