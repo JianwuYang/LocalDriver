@@ -5,10 +5,14 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
@@ -29,16 +33,22 @@ import com.baidu.mapapi.search.route.RoutePlanSearch;
 import com.baidu.mapapi.search.route.TransitRoutePlanOption;
 import com.baidu.mapapi.search.route.TransitRouteResult;
 import com.baidu.mapapi.search.route.WalkingRouteResult;
+import com.baidu.mapapi.search.sug.OnGetSuggestionResultListener;
+import com.baidu.mapapi.search.sug.SuggestionResult;
+import com.baidu.mapapi.search.sug.SuggestionSearch;
+import com.baidu.mapapi.search.sug.SuggestionSearchOption;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import overlayutil.OverlayManager;
 import overlayutil.TransitRouteOverlay;
 
-public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePlanResultListener {
+public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePlanResultListener
+,OnGetSuggestionResultListener {
 
-    private EditText startText;
-    private EditText endText;
+    private AutoCompleteTextView startText;
+    private AutoCompleteTextView endText;
 
     private String city;
     private String start;
@@ -56,12 +66,21 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
 
     TransitRouteResult nowResultransit = null;
 
+    private SuggestionSearch mSuggestionSearch = null;
+    private List<String> suggest;
+
+
+    private int flag;
+
+    private ArrayAdapter<String> sugAdapter = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_route_plan_acivity);
-        startText = (EditText)findViewById(R.id.startText);
-        endText = (EditText)findViewById(R.id.endText);
+        startText = (AutoCompleteTextView)findViewById(R.id.startText);
+        endText = (AutoCompleteTextView)findViewById(R.id.endText);
+
         mapView = (MapView)findViewById(R.id.mapView);
         mapView.showZoomControls(false);
         mapView.showScaleControl(false);
@@ -69,6 +88,75 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
         city = getIntent().getStringExtra("cityName");
         mSearch = RoutePlanSearch.newInstance();
         mSearch.setOnGetRoutePlanResultListener(this);
+
+        // 初始化建议搜索模块，注册建议搜索事件监听
+        mSuggestionSearch = SuggestionSearch.newInstance();
+        mSuggestionSearch.setOnGetSuggestionResultListener(this);
+        sugAdapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_dropdown_item_1line);
+        //keyWorldsView.setThreshold(1);
+
+        /**
+         * 当输入关键字变化时，动态更新建议列表
+         */
+        startText.addTextChangedListener(new TextWatcher() {
+
+            @Override
+            public void afterTextChanged(Editable arg0) {
+
+            }
+
+            @Override
+            public void beforeTextChanged(CharSequence arg0, int arg1,
+                                          int arg2, int arg3) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence cs, int arg1, int arg2,
+                                      int arg3) {
+                if (cs.length() <= 0) {
+                    return;
+                }
+
+                /**
+                 * 使用建议搜索服务获取建议列表，结果在onSuggestionResult()中更新
+                 */
+                flag=1;
+                mSuggestionSearch
+                        .requestSuggestion((new SuggestionSearchOption())
+                                .keyword(cs.toString()).city(city));
+            }
+        });
+        endText.addTextChangedListener(new TextWatcher() {
+
+            @Override
+            public void afterTextChanged(Editable arg0) {
+
+            }
+
+            @Override
+            public void beforeTextChanged(CharSequence arg0, int arg1,
+                                          int arg2, int arg3) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence cs, int arg1, int arg2,
+                                      int arg3) {
+                if (cs.length() <= 0) {
+                    return;
+                }
+
+                /**
+                 * 使用建议搜索服务获取建议列表，结果在onSuggestionResult()中更新
+                 */
+                flag=2;
+                mSuggestionSearch
+                        .requestSuggestion((new SuggestionSearchOption())
+                                .keyword(cs.toString()).city(city));
+            }
+        });
     }
 
 
@@ -147,6 +235,31 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
 
 
         }
+    }
+
+    /**
+     * 获取在线建议搜索结果，得到requestSuggestion返回的搜索结果
+     * @param res
+     */
+    @Override
+    public void onGetSuggestionResult(SuggestionResult res) {
+        if (res == null || res.getAllSuggestions() == null) {
+            return;
+        }
+        suggest = new ArrayList<String>();
+        for (SuggestionResult.SuggestionInfo info : res.getAllSuggestions()) {
+            if (info.key != null) {
+                suggest.add(info.key);
+            }
+        }
+        sugAdapter = new ArrayAdapter<String>(RoutePlanAcivity.this, android.R.layout.simple_dropdown_item_1line, suggest);
+        if(flag == 1){
+            startText.setAdapter(sugAdapter);
+        }else{
+            endText.setAdapter(sugAdapter);
+        }
+
+        sugAdapter.notifyDataSetChanged();
     }
 
     private class MyTransitRouteOverlay extends TransitRouteOverlay {
