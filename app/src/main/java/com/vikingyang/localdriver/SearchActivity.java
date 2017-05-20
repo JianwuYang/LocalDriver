@@ -135,6 +135,7 @@ public class SearchActivity extends AppCompatActivity {
                 listDetail.setList(convertString2List(detail));
                 listDetail.setTitle(item);
                 Intent intent = new Intent(SearchActivity.this,ListActivity.class);
+                intent.putExtra("cityName",cityName);
                 intent.putExtra("list",listDetail);
                 startActivity(intent);
             }
