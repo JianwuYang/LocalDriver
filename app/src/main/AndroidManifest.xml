@@ -29,13 +29,12 @@
         <activity android:name=".SearchActivity" />
         <activity android:name=".ListActivity" />
 
+        <meta-data
+            android:name="com.baidu.lbsapi.API_KEY"
+            android:value="lCzfiu41MPnAG8lmz4cVh4tHBH7wYvDw" />
 
-            <meta-data
-                android:name="com.baidu.lbsapi.API_KEY"
-                android:value="lCzfiu41MPnAG8lmz4cVh4tHBH7wYvDw" />
-
-
-        <activity android:name=".MapActivity"></activity>
+        <activity android:name=".MapActivity" />
+        <activity android:name=".RoutePlanAcivity"></activity>
     </application>
 
 </manifest>

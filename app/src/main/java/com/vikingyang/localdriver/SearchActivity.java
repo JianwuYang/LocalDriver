@@ -14,6 +14,7 @@ import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RadioGroup;
 import android.widget.TextView;
@@ -59,6 +60,8 @@ public class SearchActivity extends AppCompatActivity {
     private Map<String,String> contentMap;
 
     private FloatingActionButton floatingActionButton;
+
+    private Button routePlanButton;
 
     private ProgressDialog progressDialog;
 
@@ -138,6 +141,16 @@ public class SearchActivity extends AppCompatActivity {
                 intent.putExtra("cityName",cityName);
                 intent.putExtra("list",listDetail);
                 startActivity(intent);
+            }
+        });
+
+        routePlanButton = (Button)findViewById(R.id.routePlan_button);
+        routePlanButton.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v) {
+                Intent intent2 = new Intent(SearchActivity.this,RoutePlanAcivity.class);
+                intent2.putExtra("cityName",cityName);
+                startActivity(intent2);
             }
         });
     }
