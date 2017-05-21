@@ -26,6 +26,7 @@ import com.baidu.mapapi.search.core.SearchResult;
 import com.baidu.mapapi.search.poi.OnGetPoiSearchResultListener;
 import com.baidu.mapapi.search.poi.PoiCitySearchOption;
 import com.baidu.mapapi.search.poi.PoiDetailResult;
+import com.baidu.mapapi.search.poi.PoiDetailSearchOption;
 import com.baidu.mapapi.search.poi.PoiIndoorResult;
 import com.baidu.mapapi.search.poi.PoiResult;
 import com.baidu.mapapi.search.poi.PoiSearch;
@@ -34,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import overlayutil.BusLineOverlay;
+import overlayutil.PoiOverlay;
 
 public class MapActivity extends AppCompatActivity implements
         OnGetPoiSearchResultListener, OnGetBusLineSearchResultListener,
@@ -49,12 +51,13 @@ public class MapActivity extends AppCompatActivity implements
     private PoiSearch mSearch = null; // 搜索模块，也可去掉地图模块独立使用
     private BusLineSearch mBusLineSearch = null;
     private BaiduMap mBaiduMap = null;
-    BusLineOverlay overlay; // 公交路线绘制对象
+    private BusLineOverlay overlay; // 公交路线绘制对象
 
     private MapView mapView;
 
     private String cityName;
     private String busLine;
+    private int checked;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -63,6 +66,7 @@ public class MapActivity extends AppCompatActivity implements
         Intent intent = getIntent();
         cityName = intent.getStringExtra("cityName");
         busLine = intent.getStringExtra("busLine");
+        checked = intent.getIntExtra("type",0);
 
         mBtnPre = (Button) findViewById(R.id.pre);
         mBtnNext = (Button) findViewById(R.id.next);
@@ -72,18 +76,27 @@ public class MapActivity extends AppCompatActivity implements
         mapView = (MapView)findViewById(R.id.mapView);
         mBaiduMap = mapView.getMap();
         mBaiduMap.setOnMapClickListener(this);
+
         mSearch = PoiSearch.newInstance();
         mSearch.setOnGetPoiSearchResultListener(this);
-        mBusLineSearch = BusLineSearch.newInstance();
-        mBusLineSearch.setOnGetBusLineSearchResultListener(this);
-        busLineIDList = new ArrayList<String>();
-        overlay = new BusLineOverlay(mBaiduMap);
-        mBaiduMap.setOnMarkerClickListener(overlay);
-        searchButtonProcess();
+
+        if(checked == 1){
+            mBusLineSearch = BusLineSearch.newInstance();
+            mBusLineSearch.setOnGetBusLineSearchResultListener(this);
+            busLineIDList = new ArrayList<String>();
+            overlay = new BusLineOverlay(mBaiduMap);
+            mBaiduMap.setOnMarkerClickListener(overlay);
+            searchButtonProcess();
+        }else if(checked == 2){
+            searchPlaceProcess();
+        }else{
+            this.finish();
+        }
+
     }
 
     /**
-     * 发起检索
+     * 发起公交检索
      */
     public void searchButtonProcess() {
         busLineIDList.clear();
@@ -94,6 +107,13 @@ public class MapActivity extends AppCompatActivity implements
         mSearch.searchInCity((new PoiCitySearchOption()).city(
                 cityName)
                 .keyword(busLine));
+    }
+
+    /**
+     * 城市地点检索
+     */
+    public void searchPlaceProcess(){
+        mSearch.searchInCity(new PoiCitySearchOption().city(cityName).keyword(busLine));
     }
 
     public void searchNextBusline(View v) {
@@ -157,7 +177,9 @@ public class MapActivity extends AppCompatActivity implements
     @Override
     protected void onDestroy() {
         mSearch.destroy();
-        mBusLineSearch.destroy();
+        if(checked == 1){
+            mBusLineSearch.destroy();
+        }
         mapView.onDestroy();
         super.onDestroy();
     }
@@ -192,16 +214,30 @@ public class MapActivity extends AppCompatActivity implements
                     Toast.LENGTH_LONG).show();
             return;
         }
-        // 遍历所有poi，找到类型为公交线路的poi
-        busLineIDList.clear();
-        for (PoiInfo poi : result.getAllPoi()) {
-            if (poi.type == PoiInfo.POITYPE.BUS_LINE
-                    || poi.type == PoiInfo.POITYPE.SUBWAY_LINE) {
-                busLineIDList.add(poi.uid);
+        if(checked == 1){
+            // 遍历所有poi，找到类型为公交线路的poi
+            busLineIDList.clear();
+            for (PoiInfo poi : result.getAllPoi()) {
+                if (poi.type == PoiInfo.POITYPE.BUS_LINE
+                        || poi.type == PoiInfo.POITYPE.SUBWAY_LINE) {
+                    busLineIDList.add(poi.uid);
+                }
             }
+            searchNextBusline(null);
+            route = null;
         }
-        searchNextBusline(null);
-        route = null;
+
+        if(checked == 2){
+
+                mBaiduMap.clear();
+                PoiOverlay overlay = new MyPoiOverlay(mBaiduMap);
+                mBaiduMap.setOnMarkerClickListener(overlay);
+                overlay.setData(result);
+                overlay.addToMap();
+                overlay.zoomToSpan();
+
+        }
+
     }
 
     @Override
@@ -223,4 +259,23 @@ public class MapActivity extends AppCompatActivity implements
     public boolean onMapPoiClick(MapPoi poi) {
         return false;
     }
+
+
+    private class MyPoiOverlay extends PoiOverlay {
+
+            public MyPoiOverlay(BaiduMap baiduMap) {
+                super(baiduMap);
+            }
+
+            @Override
+            public boolean onPoiClick(int index) {
+                super.onPoiClick(index);
+                PoiInfo poi = getPoiResult().getAllPoi().get(index);
+                // if (poi.hasCaterDetails) {
+                mSearch.searchPoiDetail((new PoiDetailSearchOption())
+                        .poiUid(poi.uid));
+                // }
+                return true;
+            }
+        }
 }

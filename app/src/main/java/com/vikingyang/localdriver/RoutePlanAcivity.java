@@ -17,10 +17,17 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.baidu.location.BDLocation;
+import com.baidu.location.BDLocationListener;
+import com.baidu.location.LocationClient;
 import com.baidu.mapapi.map.BaiduMap;
 import com.baidu.mapapi.map.BitmapDescriptor;
 import com.baidu.mapapi.map.BitmapDescriptorFactory;
+import com.baidu.mapapi.map.MapStatusUpdate;
+import com.baidu.mapapi.map.MapStatusUpdateFactory;
 import com.baidu.mapapi.map.MapView;
+import com.baidu.mapapi.map.MyLocationData;
+import com.baidu.mapapi.model.LatLng;
 import com.baidu.mapapi.search.core.RouteLine;
 import com.baidu.mapapi.search.core.SearchResult;
 import com.baidu.mapapi.search.route.BikingRouteResult;
@@ -57,6 +64,8 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
     private MapView mapView;
     private BaiduMap baiduMap;
 
+    private boolean isFirstLocate = true;
+    private LocationClient mLocationClient;
     private boolean hasShownDialogue = false;
 
     RouteLine route = null;
@@ -77,6 +86,8 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mLocationClient = new LocationClient(getApplicationContext());
+        mLocationClient.registerLocationListener(new MyLocationListener());
         setContentView(R.layout.activity_route_plan_acivity);
         startText = (AutoCompleteTextView)findViewById(R.id.startText);
         endText = (AutoCompleteTextView)findViewById(R.id.endText);
@@ -96,6 +107,8 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
                 android.R.layout.simple_dropdown_item_1line);
         //keyWorldsView.setThreshold(1);
 
+        mLocationClient.start();
+        baiduMap.setMyLocationEnabled(true);
         /**
          * 当输入关键字变化时，动态更新建议列表
          */
@@ -159,6 +172,36 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
         });
     }
 
+
+    public class MyLocationListener implements BDLocationListener{
+
+        @Override
+        public void onReceiveLocation(BDLocation location) {
+            if(location.getLocType()==BDLocation.TypeGpsLocation || location.getLocType()==BDLocation.TypeNetWorkLocation){
+                navigateTo(location);
+            }
+        }
+        @Override
+        public void onConnectHotSpotMessage(String s, int i) {
+
+        }
+    }
+
+    private void navigateTo(BDLocation location){
+        if(isFirstLocate){
+            LatLng ll = new LatLng(location.getLatitude(),location.getLongitude());
+            MapStatusUpdate update = MapStatusUpdateFactory.newLatLng(ll);
+            baiduMap.animateMapStatus(update);
+            update = MapStatusUpdateFactory.zoomTo(16f);
+            baiduMap.animateMapStatus(update);
+            isFirstLocate = false;
+        }
+        MyLocationData.Builder locationBuilder = new MyLocationData.Builder();
+        locationBuilder.latitude(location.getLatitude());
+        locationBuilder.longitude(location.getLongitude());
+        MyLocationData locationData = locationBuilder.build();
+        baiduMap.setMyLocationData(locationData);
+    }
 
     public void searchButtonProcess(View v){
         // 重置浏览节点的路线数据
@@ -360,5 +403,27 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
     @Override
     public void onGetBikingRouteResult(BikingRouteResult bikingRouteResult) {
 
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mLocationClient.stop();
+        mapView.onDestroy();
+        baiduMap.setMyLocationEnabled(false);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mapView.onPause();
+        isFirstLocate = true;
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mapView.onResume();
+        mLocationClient.start();
     }
 }

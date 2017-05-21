@@ -139,6 +139,7 @@ public class SearchActivity extends AppCompatActivity {
                 listDetail.setTitle(item);
                 Intent intent = new Intent(SearchActivity.this,ListActivity.class);
                 intent.putExtra("cityName",cityName);
+                intent.putExtra("type",checked);
                 intent.putExtra("list",listDetail);
                 startActivity(intent);
             }
