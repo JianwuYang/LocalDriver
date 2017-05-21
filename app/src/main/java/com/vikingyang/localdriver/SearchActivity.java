@@ -1,7 +1,9 @@
 package com.vikingyang.localdriver;
 
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
@@ -10,16 +12,24 @@ import android.support.annotation.IdRes;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.AppCompatTextView;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.baidu.mapapi.search.sug.OnGetSuggestionResultListener;
+import com.baidu.mapapi.search.sug.SuggestionResult;
+import com.baidu.mapapi.search.sug.SuggestionSearch;
+import com.baidu.mapapi.search.sug.SuggestionSearchOption;
 import com.google.gson.Gson;
 import com.vikingyang.localdriver.gson.BusLine;
 import com.vikingyang.localdriver.gson.BusLineDetil;
@@ -43,7 +53,7 @@ import okhttp3.Callback;
 import okhttp3.Response;
 
 
-public class SearchActivity extends AppCompatActivity {
+public class SearchActivity extends AppCompatActivity implements OnGetSuggestionResultListener {
 
     private TextView cityNameView;
 
@@ -51,7 +61,7 @@ public class SearchActivity extends AppCompatActivity {
 
     private ScrollViewWithListView scrollViewWithListView;
 
-    private EditText editText;
+    private AutoCompleteTextView editText;
 
     ArrayAdapter<String> adapter;
 
@@ -70,13 +80,17 @@ public class SearchActivity extends AppCompatActivity {
     private int checked;
 
 
+    private SuggestionSearch mSuggestionSearch = null;
+    private List<String> suggest;
+    private ArrayAdapter<String> sugAdapter = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_search);
         cityNameView = (TextView) findViewById(R.id.title_city);
         scrollViewWithListView = (ScrollViewWithListView) findViewById(R.id.result_list);
-        editText = (EditText) findViewById(R.id.search_content);
+        editText = (AutoCompleteTextView) findViewById(R.id.search_content);
         radioGroup = (RadioGroup)findViewById(R.id.radioGroupId);
 
         contentList = new ArrayList<>();
@@ -85,6 +99,11 @@ public class SearchActivity extends AppCompatActivity {
         adapter=new ArrayAdapter<String>(SearchActivity.this,android.R.layout.simple_list_item_1,contentList);
         scrollViewWithListView.setAdapter(adapter);
 
+        // 初始化建议搜索模块，注册建议搜索事件监听
+        mSuggestionSearch = SuggestionSearch.newInstance();
+        mSuggestionSearch.setOnGetSuggestionResultListener(this);
+        sugAdapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_dropdown_item_1line);
 
         Intent intent = getIntent();
         cityName = intent.getStringExtra("city");
@@ -154,6 +173,35 @@ public class SearchActivity extends AppCompatActivity {
                 startActivity(intent2);
             }
         });
+
+        editText.addTextChangedListener(new TextWatcher() {
+
+            @Override
+            public void afterTextChanged(Editable arg0) {
+
+            }
+
+            @Override
+            public void beforeTextChanged(CharSequence arg0, int arg1,
+                                          int arg2, int arg3) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence cs, int arg1, int arg2,
+                                      int arg3) {
+                if (cs.length() <= 0) {
+                    return;
+                }
+
+                /**
+                 * 使用建议搜索服务获取建议列表，结果在onSuggestionResult()中更新
+                 */
+                mSuggestionSearch
+                        .requestSuggestion((new SuggestionSearchOption())
+                                .keyword(cs.toString()).city(cityName));
+            }
+        });
     }
 
 
@@ -185,6 +233,9 @@ public class SearchActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        if(contentList.isEmpty()){
+                            Toast.makeText(SearchActivity.this,"未查询到结果，请输入正确的公交线路！",Toast.LENGTH_SHORT).show();
+                        }
                         adapter.notifyDataSetChanged();
                         scrollViewWithListView.setSelection(0);
                         closeProgressDialog();
@@ -203,7 +254,8 @@ public class SearchActivity extends AppCompatActivity {
         Date date = new Date();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMddHHmmss");
         String timestamp = sdf.format(date);
-        String address = "https://route.showapi.com/844-1?city="+cityName+"&showapi_appid=38394&showapi_test_draft=false&showapi_timestamp="+timestamp+"&station="+editText.getText().toString()+"&showapi_sign=76a067eab2964b0482e08229436abc99";
+        String key = editText.getText().toString().split("-",0)[0];
+        String address = "https://route.showapi.com/844-1?city="+cityName+"&showapi_appid=38394&showapi_test_draft=false&showapi_timestamp="+timestamp+"&station="+key+"&showapi_sign=76a067eab2964b0482e08229436abc99";
         HttpUtil.sendOkHttpRequest(address, new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
@@ -223,6 +275,11 @@ public class SearchActivity extends AppCompatActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        if(contentList.isEmpty()){
+                            dialog();
+                            closeProgressDialog();
+                            return;
+                        }
                         adapter.notifyDataSetChanged();
                         scrollViewWithListView.setSelection(0);
                         closeProgressDialog();
@@ -271,4 +328,43 @@ public class SearchActivity extends AppCompatActivity {
             }
         }
     }
-}
+
+    public void onGetSuggestionResult(SuggestionResult res) {
+        if (res == null || res.getAllSuggestions() == null) {
+            return;
+        }
+        suggest = new ArrayList<String>();
+        for (SuggestionResult.SuggestionInfo info : res.getAllSuggestions()) {
+            if (info.key != null) {
+                suggest.add(info.key);
+            }
+        }
+        sugAdapter = new ArrayAdapter<String>(SearchActivity.this, android.R.layout.simple_dropdown_item_1line, suggest);
+        editText.setAdapter(sugAdapter);
+        sugAdapter.notifyDataSetChanged();
+    }
+
+        protected void dialog() {
+            AlertDialog.Builder builder = new AlertDialog.Builder(SearchActivity.this);
+            builder.setMessage("未查询到该信息，需要通过地图POI检索吗");
+            builder.setTitle("提示");
+            builder.setPositiveButton("确认", new DialogInterface.OnClickListener() {
+
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                    Intent intent = new Intent(SearchActivity.this,MapActivity.class);
+                    intent.putExtra("cityName",cityName);
+                    intent.putExtra("type",checked);
+                    intent.putExtra("busLine",editText.getText().toString());
+                    startActivity(intent);
+                }
+            });
+            builder.setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                }
+            });
+            builder.create().show();
+        }
+    }

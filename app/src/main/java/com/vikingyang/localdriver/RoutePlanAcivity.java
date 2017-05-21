@@ -3,6 +3,8 @@ package com.vikingyang.localdriver;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.support.annotation.NonNull;
+import android.support.design.widget.BottomSheetBehavior;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
@@ -37,6 +39,7 @@ import com.baidu.mapapi.search.route.MassTransitRouteResult;
 import com.baidu.mapapi.search.route.OnGetRoutePlanResultListener;
 import com.baidu.mapapi.search.route.PlanNode;
 import com.baidu.mapapi.search.route.RoutePlanSearch;
+import com.baidu.mapapi.search.route.TransitRouteLine;
 import com.baidu.mapapi.search.route.TransitRoutePlanOption;
 import com.baidu.mapapi.search.route.TransitRouteResult;
 import com.baidu.mapapi.search.route.WalkingRouteResult;
@@ -44,6 +47,7 @@ import com.baidu.mapapi.search.sug.OnGetSuggestionResultListener;
 import com.baidu.mapapi.search.sug.SuggestionResult;
 import com.baidu.mapapi.search.sug.SuggestionSearch;
 import com.baidu.mapapi.search.sug.SuggestionSearchOption;
+import com.vikingyang.localdriver.util.ScrollViewWithListView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -83,6 +87,11 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
 
     private ArrayAdapter<String> sugAdapter = null;
 
+    private BottomSheetBehavior behavior;
+
+    private List<String> result;
+    private ScrollViewWithListView resultList;
+    private ArrayAdapter<String> resultAdapter;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -91,6 +100,11 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
         setContentView(R.layout.activity_route_plan_acivity);
         startText = (AutoCompleteTextView)findViewById(R.id.startText);
         endText = (AutoCompleteTextView)findViewById(R.id.endText);
+
+        result = new ArrayList<>();
+        resultList = (ScrollViewWithListView)findViewById(R.id.result_list2) ;
+        resultAdapter = new ArrayAdapter<String>(RoutePlanAcivity.this,android.R.layout.simple_list_item_1,result);
+        resultList.setAdapter(resultAdapter);
 
         mapView = (MapView)findViewById(R.id.mapView);
         mapView.showZoomControls(false);
@@ -170,6 +184,24 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
                                 .keyword(cs.toString()).city(city));
             }
         });
+
+        View bottomSheet = findViewById(R.id.bottom_sheet);
+        behavior = BottomSheetBehavior.from(bottomSheet);
+        behavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+
+        behavior.setBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+            @Override
+            public void onStateChanged(@NonNull View bottomSheet, int newState) {
+                if(behavior.getState() == BottomSheetBehavior.STATE_HIDDEN) {
+                    behavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+                }
+            }
+
+            @Override
+            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
+
+            }
+        });
     }
 
 
@@ -204,6 +236,7 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
     }
 
     public void searchButtonProcess(View v){
+        behavior.setState(BottomSheetBehavior.STATE_HIDDEN);
         // 重置浏览节点的路线数据
         route = null;
         baiduMap.clear();
@@ -255,11 +288,11 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
                             overlay.setData(nowResultransit.getRouteLines().get(position));
                             overlay.addToMap();
                             overlay.zoomToSpan();
+                            showOnList(route);
                         }
 
                     });
                     myTransitDlg.show();
-                    hasShownDialogue = true;
                 }
             } else if (result.getRouteLines().size() == 1) {
                 // 直接显示
@@ -270,13 +303,31 @@ public class RoutePlanAcivity extends AppCompatActivity implements OnGetRoutePla
                 overlay.setData(result.getRouteLines().get(0));
                 overlay.addToMap();
                 overlay.zoomToSpan();
-
+                showOnList(route);
             } else {
                 Log.d("route result", "结果数<0");
                 return;
             }
 
 
+        }
+    }
+
+    private void showOnList(RouteLine route){
+
+        Object step;
+        String nodeTitle;
+        for(int i = 0;i<route.getAllStep().size();i++){
+            step = route.getAllStep().get(i);
+            nodeTitle = ((TransitRouteLine.TransitStep) step).getInstructions();
+            result.add(nodeTitle);
+        }
+
+        resultAdapter.notifyDataSetChanged();
+        if(!result.isEmpty()){
+            behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+        }else{
+            behavior.setState(BottomSheetBehavior.STATE_HIDDEN);
         }
     }
 
